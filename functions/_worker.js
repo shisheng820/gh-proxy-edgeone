@@ -1,4 +1,3 @@
-
 'use strict'
 
 /**
@@ -54,12 +53,18 @@ function newUrl(urlStr) {
     }
 }
 
-
-addEventListener('fetch', e => {
-    const ret = fetchHandler(e)
-        .catch(err => makeRes('cfworker error:\n' + err.stack, 502))
-    e.respondWith(ret)
-})
+/**
+ * EdgeOne Pages function entry.
+ * @param {Request} request
+ * @param {{ env?: Record<string, string>, waitUntil?: (promise: Promise<unknown>) => void }} context
+ */
+export default async function handler(request, context) {
+    try {
+        return await fetchHandler(request, context)
+    } catch (err) {
+        return makeRes('edgeone function error:\n' + (err?.stack || String(err)), 502)
+    }
+}
 
 
 function checkUrl(u) {
@@ -72,17 +77,17 @@ function checkUrl(u) {
 }
 
 /**
- * @param {FetchEvent} e
+ * @param {Request} req
+ * @param {{ env?: Record<string, string>, waitUntil?: (promise: Promise<unknown>) => void }} _context
  */
-async function fetchHandler(e) {
-    const req = e.request
+async function fetchHandler(req, _context) {
     const urlStr = req.url
     const urlObj = new URL(urlStr)
     let path = urlObj.searchParams.get('q')
     if (path) {
         return Response.redirect('https://' + urlObj.host + PREFIX + path, 301)
     }
-    // cfworker 会把路径中的 `//` 合并成 `/`
+    // 部分边缘运行时可能会把路径中的 `//` 合并成 `/`
     path = urlObj.href.slice(urlObj.origin.length + PREFIX.length).replace(/^https?:\/+/, 'https://')
     if (path.search(exp1) === 0 || path.search(exp5) === 0 || path.search(exp6) === 0 || path.search(exp3) === 0) {
         return httpHandler(req, path)
@@ -133,7 +138,7 @@ function httpHandler(req, pathname) {
         }
     }
     if (!flag) {
-        return new Response("blocked", { status: 403 })
+        return new Response('blocked', { status: 403 })
     }
     if (urlStr.search(/^https?:\/\//) !== 0) {
         urlStr = 'https://' + urlStr

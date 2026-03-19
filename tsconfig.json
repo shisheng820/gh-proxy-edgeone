@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": false,
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "types": ["@edgeone/pages/types"]
+  },
+  "include": ["functions/**/*", "pages/**/*", "edgeone.config.ts"]
+}

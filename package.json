@@ -1,0 +1,15 @@
+{
+  "name": "gh-proxy-edgeone",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "edgeone pages dev",
+    "build": "edgeone pages build",
+    "deploy": "edgeone pages deploy ./dist"
+  },
+  "devDependencies": {
+    "@edgeone/pages": "^1.0.0",
+    "@edgeone/pages-cli": "^1.0.0"
+  }
+}

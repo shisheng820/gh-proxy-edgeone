@@ -1,0 +1,10 @@
+{
+  "name": "gh-proxy-edgeone",
+  "installCommand": "npm install",
+  "buildCommand": "npx edgeone pages build",
+  "outputDirectory": "dist",
+  "nodeVersion": "22.11.0",
+  "nodeFunctionsConfig": {
+    "maxDuration": 30
+  }
+}
