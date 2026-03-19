@@ -1,0 +1,13 @@
+---
+description: EdgeOne Pages migration notes for the gh-proxy project.
+globs: **/*.{js,json,md}
+alwaysApply: false
+---
+
+# Project Notes
+
+- Runtime entry lives in `functions/[[path]].js` and re-exports `onRequest` from `index.js`.
+- Preserve the original gh-proxy contract: path-based upstream proxying, `?q=` redirects, permissive CORS headers, and the static asset fallback to `ASSET_URL`.
+- Keep this project on the edge runtime unless Node.js-only dependencies are introduced later.
+- Use `edgeone.json` only for documented global configuration such as headers, redirects, rewrites, or build overrides.
+- Avoid changing public URLs, methods, status codes, or response headers unless a migration gap is explicitly documented.

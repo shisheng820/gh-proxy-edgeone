@@ -1,13 +1,9 @@
 {
-  "name": "gh-proxy-edgeone",
-  "version": "1.0.0",
+  "name": "gh-proxy-edgeone-fix",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "edgeone pages dev",
-    "verify": "node scripts/verify-proxy.mjs"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "dev:functions": "edgeone pages dev"
   }
 }

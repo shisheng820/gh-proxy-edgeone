@@ -1,6 +1,2 @@
-/.idea
-# Tencent Cloud EdgeOne
-.env
-.edgeone/*
-.tef_dist/*
-  
+.edgeone/
+node_modules/

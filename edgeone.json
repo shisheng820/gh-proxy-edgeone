@@ -1,34 +1,13 @@
 {
-  "name": "gh-proxy-edgeone",
-  "installCommand": ":",
-  "buildCommand": ":",
-  "outputDirectory": "public",
-  "nodeVersion": "22.11.0",
   "headers": [
     {
       "source": "/*",
       "headers": [
         {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
         }
       ]
-    },
-    {
-      "source": "/api/*",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store"
-        }
-      ]
     }
-  ],
-  "nodeFunctionsConfig": {
-    "maxDuration": 120
-  }
+  ]
 }
