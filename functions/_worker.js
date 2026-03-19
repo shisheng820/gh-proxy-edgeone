@@ -1,17 +1,18 @@
 'use strict'
 
 /**
- * static files (404.html, sw.js, conf.js)
+ * Default runtime settings. You can override these via context.env:
+ * - GH_PROXY_ASSET_URL
+ * - GH_PROXY_PREFIX
+ * - GH_PROXY_JSDELIVR (1/0, true/false)
+ * - GH_PROXY_WHITELIST (comma-separated)
+ * - GH_PROXY_MAX_REDIRECT_HOPS
  */
-const ASSET_URL = 'https://hunshcn.github.io/gh-proxy/'
-// 前缀，如果自定义路由为example.com/gh/*，将PREFIX改为 '/gh/'，注意，少一个杠都会错！
-const PREFIX = '/'
-// 分支文件使用jsDelivr镜像的开关，0为关闭，默认关闭
-const Config = {
-    jsdelivr: 0
-}
-
-const whiteList = [] // 白名单，路径里面有包含字符的才会通过，e.g. ['/username/']
+const DEFAULT_ASSET_URL = 'https://hunshcn.github.io/gh-proxy/'
+const DEFAULT_PREFIX = '/'
+const DEFAULT_JSDELIVR = 0
+const DEFAULT_WHITE_LIST = []
+const DEFAULT_MAX_REDIRECT_HOPS = 8
 
 /** @type {ResponseInit} */
 const PREFLIGHT_INIT = {
@@ -22,7 +23,6 @@ const PREFLIGHT_INIT = {
         'access-control-max-age': '1728000',
     }),
 }
-
 
 const exp1 = /^(?:https?:\/\/)?github\.com\/.+?\/.+?\/(?:releases|archive)\/.*$/i
 const exp2 = /^(?:https?:\/\/)?github\.com\/.+?\/.+?\/(?:blob|raw)\/.*$/i
@@ -41,7 +41,6 @@ function makeRes(body, status = 200, headers = {}) {
     return new Response(body, { status, headers })
 }
 
-
 /**
  * @param {string} urlStr
  */
@@ -54,19 +53,92 @@ function newUrl(urlStr) {
 }
 
 /**
+ * @param {string} prefix
+ */
+function normalizePrefix(prefix) {
+    let normalized = (prefix || DEFAULT_PREFIX).trim()
+    if (!normalized.startsWith('/')) {
+        normalized = '/' + normalized
+    }
+    if (!normalized.endsWith('/')) {
+        normalized += '/'
+    }
+    return normalized
+}
+
+/**
+ * @param {string} url
+ */
+function normalizeAssetUrl(url) {
+    const raw = (url || DEFAULT_ASSET_URL).trim()
+    return raw.endsWith('/') ? raw : raw + '/'
+}
+
+/**
+ * @param {unknown} value
+ */
+function parseBooleanFlag(value) {
+    const normalized = String(value ?? '').trim().toLowerCase()
+    return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on'
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @param {number} min
+ * @param {number} max
+ */
+function parseIntInRange(value, fallback, min, max) {
+    const parsed = Number.parseInt(String(value ?? ''), 10)
+    if (Number.isNaN(parsed)) {
+        return fallback
+    }
+    return Math.max(min, Math.min(max, parsed))
+}
+
+/**
+ * @param {unknown} value
+ */
+function parseWhiteList(value) {
+    if (!value) {
+        return [...DEFAULT_WHITE_LIST]
+    }
+    return String(value)
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean)
+}
+
+/**
+ * @param {Record<string, string | undefined>} [env]
+ */
+function loadRuntimeConfig(env = {}) {
+    return {
+        assetUrl: normalizeAssetUrl(env.GH_PROXY_ASSET_URL || DEFAULT_ASSET_URL),
+        prefix: normalizePrefix(env.GH_PROXY_PREFIX || DEFAULT_PREFIX),
+        jsdelivr: parseBooleanFlag(env.GH_PROXY_JSDELIVR ?? DEFAULT_JSDELIVR) ? 1 : 0,
+        whiteList: parseWhiteList(env.GH_PROXY_WHITELIST),
+        maxRedirectHops: parseIntInRange(env.GH_PROXY_MAX_REDIRECT_HOPS, DEFAULT_MAX_REDIRECT_HOPS, 1, 20),
+    }
+}
+
+/**
  * EdgeOne Pages function entry.
  * @param {Request} request
  * @param {{ env?: Record<string, string>, waitUntil?: (promise: Promise<unknown>) => void }} context
  */
 export default async function handler(request, context) {
+    const runtimeConfig = loadRuntimeConfig(context?.env)
     try {
-        return await fetchHandler(request, context)
+        return await fetchHandler(request, runtimeConfig)
     } catch (err) {
         return makeRes('edgeone function error:\n' + (err?.stack || String(err)), 502)
     }
 }
 
-
+/**
+ * @param {string} u
+ */
 function checkUrl(u) {
     for (let i of [exp1, exp2, exp3, exp4, exp5, exp6]) {
         if (u.search(i) === 0) {
@@ -78,105 +150,121 @@ function checkUrl(u) {
 
 /**
  * @param {Request} req
- * @param {{ env?: Record<string, string>, waitUntil?: (promise: Promise<unknown>) => void }} _context
+ * @param {{ assetUrl: string, prefix: string, jsdelivr: number, whiteList: string[], maxRedirectHops: number }} runtimeConfig
  */
-async function fetchHandler(req, _context) {
-    const urlStr = req.url
-    const urlObj = new URL(urlStr)
+async function fetchHandler(req, runtimeConfig) {
+    const urlObj = new URL(req.url)
     let path = urlObj.searchParams.get('q')
     if (path) {
-        return Response.redirect('https://' + urlObj.host + PREFIX + path, 301)
+        return Response.redirect('https://' + urlObj.host + runtimeConfig.prefix + path, 301)
     }
-    // 部分边缘运行时可能会把路径中的 `//` 合并成 `/`
-    path = urlObj.href.slice(urlObj.origin.length + PREFIX.length).replace(/^https?:\/+/, 'https://')
-    if (path.search(exp1) === 0 || path.search(exp5) === 0 || path.search(exp6) === 0 || path.search(exp3) === 0) {
-        return httpHandler(req, path)
-    } else if (path.search(exp2) === 0) {
-        if (Config.jsdelivr) {
-            const newUrl = path.replace('/blob/', '@').replace(/^(?:https?:\/\/)?github\.com/, 'https://cdn.jsdelivr.net/gh')
-            return Response.redirect(newUrl, 302)
-        } else {
-            path = path.replace('/blob/', '/raw/')
-            return httpHandler(req, path)
-        }
-    } else if (path.search(exp4) === 0) {
-        if (Config.jsdelivr) {
-            const newUrl = path.replace(/(?<=com\/.+?\/.+?)\/(.+?\/)/, '@$1').replace(/^(?:https?:\/\/)?raw\.(?:githubusercontent|github)\.com/, 'https://cdn.jsdelivr.net/gh')
-            return Response.redirect(newUrl, 302)
-        }
-        else {
-            return httpHandler(req, path)
-        }
-    } else {
-        return fetch(ASSET_URL + path)
-    }
-}
 
+    // 部分边缘运行时可能会把路径中的 `//` 合并成 `/`
+    path = urlObj.href
+        .slice(urlObj.origin.length + runtimeConfig.prefix.length)
+        .replace(/^https?:\/+/, 'https://')
+
+    if (path.search(exp1) === 0 || path.search(exp5) === 0 || path.search(exp6) === 0 || path.search(exp3) === 0) {
+        return httpHandler(req, path, runtimeConfig)
+    }
+
+    if (path.search(exp2) === 0) {
+        if (runtimeConfig.jsdelivr) {
+            const newUrl = path
+                .replace('/blob/', '@')
+                .replace(/^(?:https?:\/\/)?github\.com/, 'https://cdn.jsdelivr.net/gh')
+            return Response.redirect(newUrl, 302)
+        }
+        path = path.replace('/blob/', '/raw/')
+        return httpHandler(req, path, runtimeConfig)
+    }
+
+    if (path.search(exp4) === 0) {
+        if (runtimeConfig.jsdelivr) {
+            const newUrl = path
+                .replace(/(?<=com\/.+?\/.+?)\/(.+?\/)/, '@$1')
+                .replace(/^(?:https?:\/\/)?raw\.(?:githubusercontent|github)\.com/, 'https://cdn.jsdelivr.net/gh')
+            return Response.redirect(newUrl, 302)
+        }
+        return httpHandler(req, path, runtimeConfig)
+    }
+
+    return fetch(runtimeConfig.assetUrl + path)
+}
 
 /**
  * @param {Request} req
  * @param {string} pathname
+ * @param {{ assetUrl: string, prefix: string, jsdelivr: number, whiteList: string[], maxRedirectHops: number }} runtimeConfig
  */
-function httpHandler(req, pathname) {
+function httpHandler(req, pathname, runtimeConfig) {
     const reqHdrRaw = req.headers
 
     // preflight
-    if (req.method === 'OPTIONS' &&
-        reqHdrRaw.has('access-control-request-headers')
-    ) {
+    if (req.method === 'OPTIONS' && reqHdrRaw.has('access-control-request-headers')) {
         return new Response(null, PREFLIGHT_INIT)
     }
 
     const reqHdrNew = new Headers(reqHdrRaw)
 
     let urlStr = pathname
-    let flag = !Boolean(whiteList.length)
-    for (let i of whiteList) {
+    let allowed = !Boolean(runtimeConfig.whiteList.length)
+    for (let i of runtimeConfig.whiteList) {
         if (urlStr.includes(i)) {
-            flag = true
+            allowed = true
             break
         }
     }
-    if (!flag) {
+    if (!allowed) {
         return new Response('blocked', { status: 403 })
     }
+
     if (urlStr.search(/^https?:\/\//) !== 0) {
         urlStr = 'https://' + urlStr
     }
     const urlObj = newUrl(urlStr)
+    if (!urlObj) {
+        return makeRes('invalid target url', 400)
+    }
 
     /** @type {RequestInit} */
     const reqInit = {
         method: req.method,
         headers: reqHdrNew,
         redirect: 'manual',
-        body: req.body
+        body: req.body,
     }
-    return proxy(urlObj, reqInit)
+    return proxy(urlObj, reqInit, runtimeConfig, 0)
 }
 
-
 /**
- *
  * @param {URL} urlObj
  * @param {RequestInit} reqInit
+ * @param {{ assetUrl: string, prefix: string, jsdelivr: number, whiteList: string[], maxRedirectHops: number }} runtimeConfig
+ * @param {number} redirectCount
  */
-async function proxy(urlObj, reqInit) {
-    const res = await fetch(urlObj.href, reqInit)
-    const resHdrOld = res.headers
-    const resHdrNew = new Headers(resHdrOld)
+async function proxy(urlObj, reqInit, runtimeConfig, redirectCount) {
+    if (redirectCount > runtimeConfig.maxRedirectHops) {
+        return makeRes('too many redirects', 508)
+    }
 
+    const res = await fetch(urlObj.href, reqInit)
+    const resHdrNew = new Headers(res.headers)
     const status = res.status
 
     if (resHdrNew.has('location')) {
-        let _location = resHdrNew.get('location')
-        if (checkUrl(_location))
-            resHdrNew.set('location', PREFIX + _location)
-        else {
-            reqInit.redirect = 'follow'
-            return proxy(newUrl(_location), reqInit)
+        const location = resHdrNew.get('location') || ''
+        if (checkUrl(location)) {
+            resHdrNew.set('location', runtimeConfig.prefix + location)
+        } else {
+            const nextUrl = newUrl(location) || newUrl(new URL(location, urlObj.href).href)
+            if (!nextUrl) {
+                return makeRes('invalid redirect location', 502)
+            }
+            return proxy(nextUrl, reqInit, runtimeConfig, redirectCount + 1)
         }
     }
+
     resHdrNew.set('access-control-expose-headers', '*')
     resHdrNew.set('access-control-allow-origin', '*')
 
