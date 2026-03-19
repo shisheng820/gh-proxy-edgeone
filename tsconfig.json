@@ -9,5 +9,5 @@
     "jsx": "react-jsx",
     "skipLibCheck": true
   },
-  "include": ["functions/**/*", "pages/**/*", "edgeone.config.ts"]
+  "include": ["functions/**/*", "src/**/*", "scripts/**/*"]
 }

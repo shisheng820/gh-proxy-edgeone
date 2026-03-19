@@ -1,11 +1,46 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="GitHub download proxy for EdgeOne Pages." />
     <title>gh-proxy-edgeone</title>
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div id="app">gh-proxy-edgeone</div>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">EdgeOne Pages</p>
+        <h1>gh-proxy-edgeone</h1>
+        <p class="lead">
+          Root path serves this static page. Proxy requests are intercepted in
+          <code>/functions/_middleware.js</code> before they fall through to static assets.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>Health Check</h2>
+        <p><a href="/api/health">/api/health</a></p>
+      </section>
+
+      <section class="panel">
+        <h2>Usage</h2>
+        <p>Release or archive:</p>
+        <pre><code>/https://github.com/user/repo/releases/download/v1.0.0/file.zip</code></pre>
+        <p>Raw file:</p>
+        <pre><code>/https://raw.githubusercontent.com/user/repo/refs/heads/main/README.md</code></pre>
+        <p>Query shortcut:</p>
+        <pre><code>/?q=https://raw.githubusercontent.com/user/repo/refs/heads/main/README.md</code></pre>
+      </section>
+
+      <section class="panel">
+        <h2>Routing Model</h2>
+        <ul>
+          <li><code>/</code> and static files are served from <code>public/</code>.</li>
+          <li><code>/api/health</code> is a dedicated function route.</li>
+          <li>GitHub, raw.githubusercontent, gist and archive targets are proxied by middleware.</li>
+        </ul>
+      </section>
+    </main>
   </body>
 </html>

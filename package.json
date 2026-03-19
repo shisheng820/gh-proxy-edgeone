@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "edgeone pages dev"
+    "dev": "edgeone pages dev",
+    "verify": "node scripts/verify-proxy.mjs"
   },
   "engines": {
     "node": ">=18.0.0"
