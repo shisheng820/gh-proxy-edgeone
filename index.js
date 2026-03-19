@@ -16,11 +16,27 @@ const config = {
 // Requests must include one of these substrings when the list is not empty.
 const whiteList = []
 
+const FORWARDED_REQUEST_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'accept-language',
+    'authorization',
+    'cache-control',
+    'content-type',
+    'if-match',
+    'if-modified-since',
+    'if-none-match',
+    'if-range',
+    'if-unmodified-since',
+    'range',
+    'user-agent'
+]
+
 /** @type {ResponseInit} */
 const PREFLIGHT_INIT = {
     status: 204,
     headers: new Headers({
-        'access-control-allow-origin': '*' ,
+        'access-control-allow-origin': '*',
         'access-control-allow-methods': 'GET,POST,PUT,PATCH,TRACE,DELETE,HEAD,OPTIONS',
         'access-control-max-age': '1728000'
     })
@@ -72,6 +88,40 @@ function checkUrl(urlStr) {
 }
 
 /**
+ * @param {Request} req
+ */
+function getProxyPath(req) {
+    const urlObj = new URL(req.url)
+    const queryPath = urlObj.searchParams.get('q')
+
+    if (queryPath) {
+        return queryPath
+    }
+
+    const pathname = urlObj.pathname.startsWith(PREFIX)
+        ? urlObj.pathname.slice(PREFIX.length)
+        : urlObj.pathname.slice(1)
+
+    return decodeURIComponent(pathname).replace(/^https?:\/+/i, 'https://')
+}
+
+/**
+ * @param {Headers} sourceHeaders
+ */
+function buildProxyHeaders(sourceHeaders) {
+    const nextHeaders = new Headers()
+
+    for (const headerName of FORWARDED_REQUEST_HEADERS) {
+        const headerValue = sourceHeaders.get(headerName)
+        if (headerValue) {
+            nextHeaders.set(headerName, headerValue)
+        }
+    }
+
+    return nextHeaders
+}
+
+/**
  * EdgeOne Pages entry point.
  *
  * @param {{ request: Request }} context
@@ -89,16 +139,18 @@ export async function onRequest(context) {
  * @param {Request} req
  */
 async function fetchHandler(req) {
-    const urlStr = req.url
-    const urlObj = new URL(urlStr)
-    let path = urlObj.searchParams.get('q')
+    const urlObj = new URL(req.url)
+    const queryPath = urlObj.searchParams.get('q')
 
-    if (path) {
-        return Response.redirect('https://' + urlObj.host + PREFIX + path, 301)
+    if (queryPath) {
+        return Response.redirect('https://' + urlObj.host + PREFIX + queryPath, 301)
     }
 
-    // The original worker expected the incoming URL path to contain a full upstream URL.
-    path = urlObj.href.slice(urlObj.origin.length + PREFIX.length).replace(/^https?:\/+/,'https://')
+    const path = getProxyPath(req)
+
+    if (!path) {
+        return fetch(ASSET_URL)
+    }
 
     if (path.search(exp1) === 0 || path.search(exp5) === 0 || path.search(exp6) === 0 || path.search(exp3) === 0) {
         return httpHandler(req, path)
@@ -110,8 +162,7 @@ async function fetchHandler(req) {
             return Response.redirect(newLocation, 302)
         }
 
-        path = path.replace('/blob/', '/raw/')
-        return httpHandler(req, path)
+        return httpHandler(req, path.replace('/blob/', '/raw/'))
     }
 
     if (path.search(exp4) === 0) {
@@ -125,7 +176,7 @@ async function fetchHandler(req) {
         return httpHandler(req, path)
     }
 
-    return fetch(ASSET_URL + path)
+    return fetch(ASSET_URL + path, { redirect: 'follow' })
 }
 
 /**
@@ -139,8 +190,6 @@ function httpHandler(req, pathname) {
     if (req.method === 'OPTIONS' && reqHdrRaw.has('access-control-request-headers')) {
         return new Response(null, PREFLIGHT_INIT)
     }
-
-    const reqHdrNew = new Headers(reqHdrRaw)
 
     let urlStr = pathname
     let flag = !Boolean(whiteList.length)
@@ -169,9 +218,12 @@ function httpHandler(req, pathname) {
     /** @type {RequestInit} */
     const reqInit = {
         method: req.method,
-        headers: reqHdrNew,
-        redirect: 'manual',
-        body: req.body
+        headers: buildProxyHeaders(reqHdrRaw),
+        redirect: 'manual'
+    }
+
+    if (!['GET', 'HEAD'].includes(req.method)) {
+        reqInit.body = req.body
     }
 
     return proxy(urlObj, reqInit)
