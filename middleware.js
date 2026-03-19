@@ -41,3 +41,10 @@ export async function middleware(context) {
 
   return withPoweredByHeader(response)
 }
+
+// Force middleware to run for literal proxy paths such as `/https://...`.
+// On EdgeOne Git deployments these paths can otherwise fall through to the
+// static asset layer before our proxy logic gets a chance to inspect them.
+export const config = {
+  matcher: ['^/.*$'],
+}
