@@ -4,12 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "edgeone pages dev",
-    "build": "edgeone pages build",
-    "deploy": "edgeone pages deploy ./dist"
-  },
-  "devDependencies": {
-    "@edgeone/pages-cli": "^1.0.0"
+    "dev": "edgeone pages dev"
   },
   "engines": {
     "node": ">=18.0.0"

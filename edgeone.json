@@ -1,8 +1,8 @@
 {
   "name": "gh-proxy-edgeone",
-  "installCommand": "npm install",
-  "buildCommand": "npx edgeone pages build",
-  "outputDirectory": "dist",
+  "installCommand": ":",
+  "buildCommand": ":",
+  "outputDirectory": "public",
   "nodeVersion": "22.11.0",
   "headers": [
     {
