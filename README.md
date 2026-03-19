@@ -7,9 +7,9 @@ This repository now uses a simpler EdgeOne Pages layout:
 ```text
 .
 ├── functions/
-│   ├── _middleware.js    # Global traffic splitter for proxy requests
 │   └── api/
 │       └── health.js     # GET /api/health
+├── middleware.js         # Global EdgeOne middleware for proxy routing
 ├── public/
 │   ├── index.html        # Static homepage
 │   ├── 404.html          # Static fallback page
@@ -31,7 +31,7 @@ The old mix of `pages/`, `public/`, and `_worker.js` made deployment behavior am
 
 1. `public/` serves the homepage and static files.
 2. `functions/api/health.js` handles the health endpoint.
-3. `functions/_middleware.js` intercepts GitHub proxy requests before static fallback.
+3. Root-level `middleware.js` intercepts GitHub proxy requests before static fallback.
 4. `src/proxy/core.js` keeps the original Cloudflare-style proxy logic in one reusable module.
 
 ## Supported proxy targets

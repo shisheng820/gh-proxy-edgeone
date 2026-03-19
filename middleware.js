@@ -5,9 +5,9 @@ import {
   shouldAttemptAssetFallback,
   shouldProxyRequest,
   withPoweredByHeader,
-} from '../src/proxy/core.js'
+} from './src/proxy/core.js'
 
-export async function onRequest(context) {
+export async function middleware(context) {
   const runtimeConfig = loadRuntimeConfig(context?.env)
 
   if (shouldProxyRequest(context.request, runtimeConfig)) {
