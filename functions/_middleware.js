@@ -1,5 +1,6 @@
-export default async function middleware(request, context) {
+export async function onRequest(context) {
   const response = await context.next()
-  response.headers.set('x-powered-by', 'edgeone-pages')
-  return response
+  const nextResponse = new Response(response.body, response)
+  nextResponse.headers.set('x-powered-by', 'edgeone-pages')
+  return nextResponse
 }

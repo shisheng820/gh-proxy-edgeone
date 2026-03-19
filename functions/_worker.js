@@ -123,14 +123,13 @@ function loadRuntimeConfig(env = {}) {
 }
 
 /**
- * EdgeOne Pages function entry.
- * @param {Request} request
- * @param {{ env?: Record<string, string>, waitUntil?: (promise: Promise<unknown>) => void }} context
+ * EdgeOne Functions entry (recognized by builder).
+ * @param {{ request: Request, env?: Record<string, string> }} context
  */
-export default async function handler(request, context) {
+export async function onRequest(context) {
     const runtimeConfig = loadRuntimeConfig(context?.env)
     try {
-        return await fetchHandler(request, runtimeConfig)
+        return await fetchHandler(context.request, runtimeConfig)
     } catch (err) {
         return makeRes('edgeone function error:\n' + (err?.stack || String(err)), 502)
     }

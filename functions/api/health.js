@@ -1,4 +1,4 @@
-export default async function handler() {
+export async function onRequestGet() {
   return Response.json({
     ok: true,
     service: 'gh-proxy-edgeone',

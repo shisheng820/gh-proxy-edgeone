@@ -7,8 +7,7 @@
     "allowJs": true,
     "checkJs": false,
     "jsx": "react-jsx",
-    "skipLibCheck": true,
-    "types": ["@edgeone/pages/types"]
+    "skipLibCheck": true
   },
   "include": ["functions/**/*", "pages/**/*", "edgeone.config.ts"]
 }

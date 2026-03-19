@@ -12,7 +12,7 @@
 .
 ├── functions/
 │   ├── _worker.js        # 全路径代理核心逻辑（由原 Cloudflare Worker 迁移）
-│   ├── _middleware.js    # 全局中间件示例
+│   ├── _middleware.js    # 全局中间件
 │   └── api/
 │       └── health.js     # GET /api/health 健康检查
 ├── pages/
@@ -76,3 +76,11 @@ npm run dev
 npm run build
 npm run deploy
 ```
+
+## 常见问题
+
+1. 如果 CI 日志出现 `@edgeone/pages ... Not found`：
+- 这是因为该包在 npm registry 不可用。
+- 本项目仅使用 `@edgeone/pages-cli`，请不要再添加 `@edgeone/pages` 依赖。
+2. 如果日志出现 `No server-handler detected`：
+- 请确认 `functions/_worker.js` 导出的是 `onRequest`（不是默认导出函数）。
